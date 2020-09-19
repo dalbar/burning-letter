@@ -1,5 +1,5 @@
 import * as React from "react";
-import CreateNoteForm from "../components/MessageBox";
+import CreateNoteForm from "../components/CreateNoteForm";
 
 function CreateMessage(): JSX.Element {
   return (
