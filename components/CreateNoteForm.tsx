@@ -86,7 +86,7 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
                         placeholder="Enter your encryption secret."
                       />
 
-                      <Flex ml="3">
+                      <Flex ml="3" fontSize={12}>
                         <Button
                           variant="outline"
                           p="2"
