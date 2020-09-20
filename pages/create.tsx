@@ -6,12 +6,16 @@ function CreateMessage(): JSX.Element {
   return (
     <Flex justify="center" align="center">
       <CreateNoteForm
-        handleSubmit={(values) =>
-          new Promise((res) => {
-            console.log(values);
-            res();
-          })
-        }
+        handleSubmit={async (values) => {
+          console.log(values);
+          await fetch("api/create", {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify(values),
+          });
+        }}
       />
     </Flex>
   );
