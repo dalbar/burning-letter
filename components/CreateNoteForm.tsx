@@ -110,9 +110,6 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
                   <FormControl mb="4">
                     <FormLabel htmlFor="deleteAfter"> Expires after </FormLabel>
                     <Select {...field} w="150px">
-                      <option value="5m">5 minutes</option>
-                      <option value="15m">15 minutes</option>
-                      <option value="30m">30 minutes</option>
                       <option value="1h">1 hour</option>
                       <option value="3h">3 hours</option>
                       <option value="1d">1 day</option>
