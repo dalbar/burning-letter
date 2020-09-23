@@ -1,3 +1,6 @@
+/**
+ * Top bar for navigtion
+ **/
 import React from "react";
 import { Box, Link, Heading, Flex, Text } from "@chakra-ui/core";
 import NextLink from "next/link";
@@ -29,7 +32,11 @@ function Header(): JSX.Element {
       bg="gray.900"
       color="white"
       justify="space-between"
-      mb="2rem"
+      position="absolute"
+      boxSizing="border-box"
+      w="100%"
+      left="0"
+      top="0"
     >
       <Flex align="center" mr={5}>
         <Link href="/">

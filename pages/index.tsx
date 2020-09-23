@@ -1,3 +1,7 @@
+/**
+ * Landing/Start page of application
+ * TODO add some nice explanation and quick start guide
+ **/
 import Head from "next/head";
 import * as React from "react";
 
