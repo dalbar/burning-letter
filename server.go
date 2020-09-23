@@ -75,6 +75,10 @@ func (note *Note) cleanS3Quotes() {
 // Crypto functions
 // -------------------------------------------------------------------------------
 
+// encryptMessage uses chacha20poly1305 to encrypt and mutate the given note's message
+// returns error if encrypt fails
+//	- secret is invalid e.g not 32 byte
+// stores nonce and inserts in front of encrypted message to ensure integrity
 func (note *Note) encryptMessage() (err error) {
 	aead, err := chacha20poly1305.New(note.Secret)
 	if err != nil {
@@ -93,6 +97,10 @@ func (note *Note) encryptMessage() (err error) {
 	return nil
 }
 
+// decryptMessage uses chacha20poly1305 to decrypt and mutate the given note's message
+// returns error if decrypt fails
+//	- secret is invalid e.g not 32 byte
+//	- nonce is invalid
 func (note *Note) decryptMessage() (err error) {
 	aead, err := chacha20poly1305.New(note.Secret)
 	if err != nil {
@@ -116,6 +124,7 @@ func (note *Note) decryptMessage() (err error) {
 	return nil
 }
 
+// generateSecret is generating a pseudo-random 32 byte key
 func generateSecret() []byte {
 	key := make([]byte, chacha20poly1305.KeySize)
 
@@ -130,7 +139,14 @@ func generateSecret() []byte {
 // HTTP Handler functions
 // -------------------------------------------------------------------------------
 
-// handleGetNote retreives a note
+// handleGetNote retreives a note from amazon and requests removing the note (TODO)
+// It does not decrypt the message. We want to give the user the option to decrypt
+// his own messages.
+// url param for uuid: /notes/{id}
+// output:
+// - 404, if invalid uuid or already cleaned up uuid is provided
+// - 500, aws answer is not able to fit buffer
+// - 200, returns content of message as plain text
 func handleGetNote(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
 
@@ -140,8 +156,9 @@ func handleGetNote(w http.ResponseWriter, r *http.Request) {
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(id),
 	})
+
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -160,6 +177,17 @@ func handleGetNote(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, b64.URLEncoding.EncodeToString(buf.Bytes()))
 }
 
+// handleCreateNote is encrypting a note and saving the result to s3
+//	a fresh uuid is generated for every note therefore making guessing
+//  of notes infeasible
+// outputs:
+// - 400, no body therefore no note to create
+// - 400, invalid json provided (e.g syntax error)
+// - 400, message or secret is not b64 encoded
+// - 400, encryption was not successful (most likely because of invalid key e.g not 32 byte)
+// - 500, upload to s3 failed
+// - 500, marshaling failed for id response (unlikely unless aws provides weird answer)
+// - 200, json which includes generated uuid for note
 func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 	if r.Body == nil {
 		http.Error(w, "No Body was attached", http.StatusBadRequest)
@@ -176,6 +204,9 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 	err := dec.Decode(&data)
 	if err != nil {
 		log.Print(err.Error())
+		http.Error(w, "Invalid json provided", http.StatusBadRequest)
+
+		return
 	}
 
 	// Secret is b64 decoded, revert for encryption
@@ -223,16 +254,29 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// offer a handler for options to handle browser option requests
 func handleOptions(w http.ResponseWriter, r *http.Request) {
 	// never expose server to public
 }
 
+// handleRandomKey write a randomly generated 32 byte key
+// keys are not stored at any time
+// output, base64 string
 func handleRandomKey(w http.ResponseWriter, r *http.Request) {
 	key := generateSecret()
 
 	fmt.Fprint(w, b64.URLEncoding.EncodeToString(key))
 }
 
+// handleDecrypt decrypts a given message with a given secret
+// query parameters:
+// - message, base64 string
+// - secret, base64 string
+// outputs:
+// - 400, secret is not in base64 format
+// - 400, message is not in base64 format
+// - 400, tampered message or invalid secret (decryption fails or nonce invalid)
+// - 200, returns encrypted message
 func handleDecrypt(w http.ResponseWriter, r *http.Request) {
 	messageB64 := r.URL.Query().Get("message")
 	secretB64 := r.URL.Query().Get("secret")
@@ -267,7 +311,7 @@ func handleDecrypt(w http.ResponseWriter, r *http.Request) {
 // Middleware functions
 // -------------------------------------------------------------------------------
 
-// enable cors for requests, never make this api public with these configs
+// enable cors for every requests, never make this api public with these configs
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
