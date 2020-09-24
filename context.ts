@@ -4,8 +4,8 @@
  **/
 import * as React from "react";
 
-const backend = "http://localhost:8080";
-const frontend = "http://localhost:3000";
+const backend = process.env.API || "http://localhost:8080";
+const frontend = process.env.WEB || "http://localhost:3000";
 
 const AppContext = React.createContext({
   backend,

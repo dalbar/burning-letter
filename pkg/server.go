@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -26,16 +27,6 @@ import (
 // IDResponse is used to indicate the client where his new note is created/located
 type IDResponse struct {
 	ID string `json:"id"`
-}
-
-// Note contains a message and an expiry date
-type Note struct {
-	Message     json.RawMessage `json:"note"`
-	DeleteAfter string
-	// Secrets received from clients will be base64 encoded
-	SecretB64 string `json:"secret"`
-	// when receiving a note with a secret, make sure to decode the b64 version for encryption
-	Secret []byte
 }
 
 // -------------------------------------------------------------------------------
@@ -66,64 +57,6 @@ func dclose(f io.Closer) {
 	}
 }
 
-// aws is inserting quotes upon saving messages to buckets TODO (figure out why)
-func (note *Note) cleanS3Quotes() {
-	note.Message = note.Message[1 : len(note.Message)-1]
-}
-
-// -------------------------------------------------------------------------------
-// Crypto functions
-// -------------------------------------------------------------------------------
-
-// encryptMessage uses chacha20poly1305 to encrypt and mutate the given note's message
-// returns error if encrypt fails
-//	- secret is invalid e.g not 32 byte
-// stores nonce and inserts in front of encrypted message to ensure integrity
-func (note *Note) encryptMessage() (err error) {
-	aead, err := chacha20poly1305.New(note.Secret)
-	if err != nil {
-		fmt.Printf("Could not create cypher instance!")
-		return err
-	}
-
-	nonce := make([]byte, chacha20poly1305.NonceSize, chacha20poly1305.NonceSize+len(note.Message)+aead.Overhead())
-	if _, err := rand.Read(nonce); err != nil {
-		panic(err)
-	}
-
-	// Encrypt the message and append the ciphertext to the nonce.
-	note.Message = aead.Seal(nonce, nonce, note.Message, nil)
-
-	return nil
-}
-
-// decryptMessage uses chacha20poly1305 to decrypt and mutate the given note's message
-// returns error if decrypt fails
-//	- secret is invalid e.g not 32 byte
-//	- nonce is invalid
-func (note *Note) decryptMessage() (err error) {
-	aead, err := chacha20poly1305.New(note.Secret)
-	if err != nil {
-		fmt.Printf("Could not create cypher instance!")
-		return err
-	}
-
-	if len(note.Message) < chacha20poly1305.NonceSize {
-		return fmt.Errorf("ciphertext too short")
-	}
-
-	// Split nonce and ciphertext.
-	nonce, ciphertext := note.Message[:chacha20poly1305.NonceSize], note.Message[chacha20poly1305.NonceSize:]
-
-	// Decrypt the message and check it wasn't tampered with.
-	note.Message, err = aead.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return nil
-}
-
 // generateSecret is generating a pseudo-random 32 byte key
 func generateSecret() []byte {
 	key := make([]byte, chacha20poly1305.KeySize)
@@ -133,6 +66,22 @@ func generateSecret() []byte {
 	}
 
 	return key
+}
+
+func deleteNoteFromAWS(id string) {
+	_, err := svc.DeleteObject(&s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(id),
+	})
+
+	if err != nil {
+		log.Println(err.Error())
+	}
+}
+
+// notes are only allowed to persist for max 3 days (72h)
+func isValidExpiration(expiration time.Duration) bool {
+	return expiration <= time.Hour*72
 }
 
 // -------------------------------------------------------------------------------
@@ -156,9 +105,8 @@ func handleGetNote(w http.ResponseWriter, r *http.Request) {
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(id),
 	})
-
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "Key not found", http.StatusNotFound)
 		return
 	}
 
@@ -173,6 +121,8 @@ func handleGetNote(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	defer deleteNoteFromAWS(id)
 
 	fmt.Fprint(w, b64.URLEncoding.EncodeToString(buf.Bytes()))
 }
@@ -202,10 +152,18 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 	var data Note
 
 	err := dec.Decode(&data)
+
 	if err != nil {
 		log.Print(err.Error())
 		http.Error(w, "Invalid json provided", http.StatusBadRequest)
 
+		return
+	}
+
+	expiresIn, err := time.ParseDuration(data.DeleteAfter)
+
+	if err != nil || !isValidExpiration(expiresIn) {
+		http.Error(w, "invalid expiration time given", http.StatusBadRequest)
 		return
 	}
 
@@ -214,6 +172,7 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		http.Error(w, "secret is not a valid base64 encryption", http.StatusBadRequest)
+		return
 	}
 
 	id := uuid.New().String()
@@ -236,6 +195,7 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := json.Marshal(&IDResponse{ID: id})
+
 	if err != nil {
 		log.Print(err.Error())
 		http.Error(w, "Could not build response", http.StatusInternalServerError)
@@ -252,6 +212,16 @@ func handleCreateNote(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+
+	go func() {
+		log.Println("started timer")
+		time.Sleep(time.Second)
+
+		deleteNoteFromAWS("random")
+		log.Println("deleted")
+
+	}()
+
 }
 
 // offer a handler for options to handle browser option requests

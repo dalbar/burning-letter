@@ -58,7 +58,7 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
   return (
     <Box>
       <Formik
-        initialValues={{ note: "", deleteAfter: "5m" }}
+        initialValues={{ note: "", deleteAfter: "1h" }}
         onSubmit={async (values, actions) => {
           await handleSubmit({ ...values, secret });
           actions.setSubmitting(false);
@@ -126,8 +126,8 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
                     <Select {...field} w="150px">
                       <option value="1h">1 hour</option>
                       <option value="3h">3 hours</option>
-                      <option value="1d">1 day</option>
-                      <option value="1w">1 week</option>
+                      <option value="24h">1 day</option>
+                      <option value="72h">3 days</option>
                     </Select>
                   </FormControl>
                 )}
