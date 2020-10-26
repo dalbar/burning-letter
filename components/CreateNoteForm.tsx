@@ -4,22 +4,17 @@
  * uses formik
  **/
 import * as React from "react";
-import {
-  Box,
-  Button,
-  FormControl,
-  Flex,
-  Text,
-  Textarea,
-  FormLabel,
-  FormErrorMessage,
-  Input,
-  Select,
-} from "@chakra-ui/core";
 import { Formik, Form, Field, FormikProps } from "formik";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSyncAlt, faCopy } from "@fortawesome/free-solid-svg-icons";
+import { css } from "@emotion/core";
+import styled from "@emotion/styled";
 import AppContext from "../context";
+import Title from "./Title";
+import Button from "./Button";
+import theme from "../theme";
+import FormInput from "./FormInput";
+import TextArea from "./TextArea";
 
 interface CreateNoteFormValues {
   note: string;
@@ -38,6 +33,42 @@ function validateNotEmptyString(value: string) {
   return error;
 }
 
+const selectCss = css`
+  width: 110px;
+  padding: 0.3rem 0.3rem;
+  -webkit-appearance: none;
+  appearance: none;
+  -moz-appearance: none;
+  border: none;
+  background: ${theme.colors.elevation.dp02}
+    url("data:image/svg+xml;utf8,<svg viewBox='0 0 140 140' width='16' height='16' xmlns='http://www.w3.org/2000/svg'><g><path d='m121.3,34.6c-1.6-1.6-4.2-1.6-5.8,0l-51,51.1-51.1-51.1c-1.6-1.6-4.2-1.6-5.8,0-1.6,1.6-1.6,4.2 0,5.8l53.9,53.9c0.8,0.8 1.8,1.2 2.9,1.2 1,0 2.1-0.4 2.9-1.2l53.9-53.9c1.7-1.6 1.7-4.2 0.1-5.8z' fill='white'/></g></svg>")
+    no-repeat;
+  background-position: right 5px top 60%;
+  color: white;
+`;
+
+const FormContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  background: ${theme.colors.elevation.dp01};
+  padding: ${theme.spacing[6]};
+
+  textarea,
+  input {
+    padding: ${theme.spacing[2]};
+    border-width: 0px;
+  }
+  textarea {
+  }
+`;
+
+/**
+ * CreateNoteForm is handling form input as well as fetching of secret key
+ * TODO check if it makes more sense to extract the effect in order to make this
+ * component more simple
+ */
 function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
   const [secret, setSecret] = React.useState("");
   const { backend } = React.useContext(AppContext);
@@ -56,7 +87,15 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
   }, [setSecret, secret]);
 
   return (
-    <Box>
+    <div
+      css={css`
+        width: 100%;
+        height: 100%;
+        max-width: 800px;
+        max-height: 1000px;
+        margin: 0 30px;
+      `}
+    >
       <Formik
         initialValues={{ note: "", deleteAfter: "1h" }}
         onSubmit={async (values, actions) => {
@@ -65,88 +104,122 @@ function CreateNoteForm({ handleSubmit }: CreateNoteFormProps): JSX.Element {
         }}
       >
         {(props: FormikProps<CreateNoteFormValues>) => (
-          <Box boxShadow="sm" w="30rem" p="4" bg="gray.900" borderRadius="25px">
-            <Text mb="5" fontSize="lg" color="gray.600">
-              Create a new note
-            </Text>
-            <Form>
+          <FormContainer>
+            <Title>Create a new note</Title>
+            <Form
+              css={css`
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+              `}
+            >
               <Field name="note" validate={validateNotEmptyString}>
-                {({ field, form }) => (
-                  <FormControl
-                    isInvalid={form.errors.name && form.touched.name}
-                    mb="4"
+                {({ field }) => (
+                  <FormInput
+                    css={css`
+                      flex-grow: 1;
+                    `}
                   >
-                    <FormLabel htmlFor="note">Note</FormLabel>
-                    <Textarea
+                    <label htmlFor="note">Note</label>
+                    <TextArea
                       {...field}
                       id="note"
                       placeholder="Start writing your burning letter here."
-                      h="400px"
-                      resize="vertical"
                     />
-                    <FormErrorMessage> {form.errors.name} </FormErrorMessage>
-                  </FormControl>
+                  </FormInput>
                 )}
               </Field>
-              <FormControl mb="4">
-                <FormLabel htmlFor="secret">
+              <FormInput>
+                <label htmlFor="secret">
                   Secret (generated on the server){" "}
-                </FormLabel>
-                <Flex align="center">
-                  <Input
+                </label>
+                <div
+                  css={css`
+                    display: flex;
+                    justify-content: space-between;
+                  `}
+                >
+                  <input
                     type="text"
                     placeholder="generating..."
                     value={secret}
                     readOnly
+                    css={(theme) => `
+                      flex-grow: 1;
+                      margin-right: 1rem;
+                      color: ${theme.colors.onBackground};
+                      background: ${theme.colors.elevation.dp02};
+
+                    `}
                   />
 
-                  <Flex ml="3" fontSize={12}>
+                  <div
+                    css={css`
+                      display: flex;
+                      align-items: center;
+                    `}
+                  >
                     <Button
-                      variant="outline"
-                      p="2"
+                      css={css`
+                        height: 100%;
+                        margin-right: 0.5em;
+                      `}
                       onClick={() => navigator.clipboard.writeText(secret)}
                     >
-                      <FontAwesomeIcon size="sm" icon={faCopy} />
+                      <FontAwesomeIcon icon={faCopy} />
                     </Button>
                     <Button
-                      p="2"
-                      ml="2"
-                      variant="outline"
+                      css={css`
+                        height: 100%;
+                      `}
                       onClick={() => setSecret("")}
                     >
-                      <FontAwesomeIcon size="sm" icon={faSyncAlt} />
+                      <FontAwesomeIcon icon={faSyncAlt} />
                     </Button>
-                  </Flex>
-                </Flex>
-              </FormControl>
+                  </div>
+                </div>
+              </FormInput>
               <Field name="deleteAfter">
                 {({ field }) => (
-                  <FormControl mb="4">
-                    <FormLabel htmlFor="deleteAfter"> Expires after </FormLabel>
-                    <Select {...field} w="150px">
+                  <FormInput
+                    css={() => `
+                      display: flex;
+                      flex-direction: column;
+                    `}
+                  >
+                    <label htmlFor="deleteAfter"> Expires after </label>
+                    <select css={selectCss} {...field}>
                       <option value="1h">1 hour</option>
                       <option value="3h">3 hours</option>
                       <option value="24h">1 day</option>
+
                       <option value="72h">3 days</option>
-                    </Select>
-                  </FormControl>
+                    </select>
+                  </FormInput>
                 )}
               </Field>
-              <Flex justify="end">
+              <div
+                css={css`
+                  display: flex;
+                  flex-direction: row-reverse;
+                  width: 100%;
+                `}
+              >
                 <Button
+                  primary
                   type="submit"
-                  isDisabled={!props.isValid || secret.length === 0}
-                  isLoading={props.isSubmitting}
-                  mt="4"
+                  rounded
+                  disabled={!props.isValid || secret.length === 0}
+                  // isLoading={props.isSubmitting}
                 >
                   Submit
                 </Button>
-              </Flex>
+              </div>
             </Form>
-          </Box>
+          </FormContainer>
         )}
       </Formik>
-    </Box>
+    </div>
   );
 }
 

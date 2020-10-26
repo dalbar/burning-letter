@@ -2,7 +2,6 @@
  * Generic title component for fitting dark mode
  **/
 import * as React from "react";
-import { Text } from "@chakra-ui/core";
 
 interface TitleProps {
   children: React.ReactChild;
@@ -10,9 +9,17 @@ interface TitleProps {
 
 function Title({ children }: TitleProps): JSX.Element {
   return (
-    <Text mb="5" fontSize="lg" color="gray.600">
+    <div
+      className="title"
+      css={(theme) => `
+     color: ${theme.colors.onBackground};
+     opacity: 0.6;
+     font-size: 1.1rem;
+     margin-bottom: ${theme.spacing[5]};
+`}
+    >
       {children}
-    </Text>
+    </div>
   );
 }
 

@@ -2,63 +2,79 @@
  * Top bar for navigtion
  **/
 import React from "react";
-import { Box, Link, Heading, Flex, Text } from "@chakra-ui/core";
 import NextLink from "next/link";
+import { css } from "@emotion/core";
 import { useRouter } from "next/router";
+import Logo from "./Logo";
 
 const MenuItem = ({ children }: { children: React.ReactNode }) => (
-  <Box mt={{ base: 4, md: 0 }} mr={6} display="block" cursor="pointer">
+  <div
+    css={(theme) => css`
+      margin-right: ${theme.spacing[4]};
+      cursor: pointer;
+      color: ${theme.colors.onBackground};
+      align-content: center;
+    `}
+  >
     {children}
-  </Box>
+  </div>
 );
 
 function Header(): JSX.Element {
   const router = useRouter();
 
-  function isActive(route: string): boolean {
-    return router.pathname === route;
-  }
-
-  function itemColor(isActive: boolean): string {
-    return isActive ? "white" : "gray.400";
-  }
-
   return (
-    <Flex
-      as="nav"
-      align="center"
-      wrap="wrap"
-      padding="1.5rem"
-      bg="gray.900"
-      color="white"
-      justify="space-between"
-      position="absolute"
-      boxSizing="border-box"
-      w="100%"
-      left="0"
-      top="0"
-    >
-      <Flex align="center" mr={5}>
-        <Link href="/">
-          <Heading cursor="pointer" size="md">
-            BurningLetter
-          </Heading>
-        </Link>
-      </Flex>
+    <nav
+      css={(theme) => `
+        justify-content: space-between;
+        display: flex;
+        align-content: center;
+        color: white;
+        position: fixed;
+        background: ${theme.colors.elevation.dp01};
+        overflow: hidden;
+        width: 100%;
+        height: 80px;
+        padding: 0 ${theme.spacing[4]};
+        font-size: 1.3rem;
+        top: 0;
+        a:link {
+          text-decoration: none;
+        }
 
-      <Flex align="center">
+        a:visited {
+          text-decoration: none;
+
+      color: ${theme.colors.onBackground}
+        }
+
+        a:hover {
+          text-decoration: underline;
+        }
+
+        a:active {
+          text-decoration: underline;
+        }
+      `}
+    >
+      <Logo />
+
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row-reverse;
+          flex-grow: 1;
+          align-items: center;
+        `}
+      >
         <MenuItem>
-          <Link as={NextLink} href="/">
-            <Text color={itemColor(isActive("/"))}> Home </Text>
-          </Link>
+          <NextLink href="/create">Create</NextLink>
         </MenuItem>
         <MenuItem>
-          <Link as={NextLink} href="/create">
-            <Text color={itemColor(isActive("/create"))}> Create </Text>
-          </Link>
+          <NextLink href="/">Decrypt</NextLink>
         </MenuItem>
-      </Flex>
-    </Flex>
+      </div>
+    </nav>
   );
 }
 
