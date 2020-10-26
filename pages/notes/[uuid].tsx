@@ -4,24 +4,40 @@
 import * as React from "react";
 import { useRouter } from "next/router";
 import AppContext from "../../context";
-import {
-  Box,
-  Input,
-  Flex,
-  Button,
-  FormControl,
-  FormLabel,
-  Textarea,
-  Text,
-} from "@chakra-ui/core";
-import Title from "../../components/Title";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import Flex from "../../components/Flex";
+import Button from "../../components/Button";
+import theme from "../../theme";
+import Title from "../../components/Title";
 import {
   faEye,
   faEyeSlash,
   faLock,
   faLockOpen,
 } from "@fortawesome/free-solid-svg-icons";
+import { css } from "@emotion/core";
+import styled from "@emotion/styled";
+import FormInput from "../../components/FormInput";
+import TextArea from "../../components/TextArea";
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: ${theme.colors.elevation.dp01};
+  padding: ${theme.spacing[6]};
+  width: 100%;
+  max-width: 800px;
+  max-height: 1000px;
+  margin: 0 30px;
+
+  color: ${theme.colors.onBackground};
+
+  input {
+    padding: ${theme.spacing[2]};
+    border-width: 0px;
+  }
+`;
 
 /**
  * Note needs to keep track of multiple states and reflect them in the UI
@@ -55,13 +71,20 @@ function Note(): JSX.Element {
   const { backend } = React.useContext(AppContext);
 
   const router = useRouter();
+
   const { uuid } = router.query;
 
   React.useEffect(() => {
     async function fetchNote() {
       if (loading) {
         const res = await fetch(`${backend}/notes/${uuid}`);
+
+        if (res.status === 404) {
+          return router.push("/notes/not-found");
+        }
+
         const note = await res.text();
+
         setLoading(false);
         setNote(note);
       } else if (secret && !isDecrypted) {
@@ -76,14 +99,19 @@ function Note(): JSX.Element {
             const plaintext = await resp.text();
 
             setIsDecrypted(true);
-            setNote(plaintext);
+
+            const regex = /\\n/gm;
+            const subst = `\r\n`;
+
+            setNote(plaintext.replace(regex, subst));
           }
         } catch (e) {
           setFailedDecrypt(true);
         }
       }
     }
-    fetchNote();
+
+    if (uuid) fetchNote();
   }, [
     note,
     isDecrypted,
@@ -97,23 +125,27 @@ function Note(): JSX.Element {
   ]);
 
   return (
-    <Flex h="100%" align="center" justify="center">
-      <Box boxShadow="sm" w="30rem" p="4" bg="gray.900" borderRadius="25px">
-        {!loading ? (
-          <Box>
-            <Title>Load and Decrypt the requested note</Title>
-            <NoteComponent note={note} isDecrypted={isDecrypted} />
-            {!isDecrypted && (
-              <DecryptComponent
-                failedDecrypt={failedDecrypt}
-                handleSubmit={setSecret}
-              />
-            )}
-          </Box>
-        ) : (
-          <div> Loading </div>
-        )}
-      </Box>
+    <Flex>
+      {!loading ? (
+        <Container>
+          <Title>Load and Decrypt the requested note</Title>
+          <NoteComponent note={note} isDecrypted={isDecrypted} />
+          {!isDecrypted && (
+            <DecryptComponent
+              failedDecrypt={failedDecrypt}
+              handleSubmit={setSecret}
+            />
+          )}
+        </Container>
+      ) : (
+        <Container
+          css={css`
+            height: auto;
+          `}
+        >
+          Loading
+        </Container>
+      )}
     </Flex>
   );
 }
@@ -129,30 +161,47 @@ function NoteComponent({
   note: string;
 }): JSX.Element {
   return (
-    <Box>
-      <FormLabel> Note </FormLabel>
-      <Textarea
-        value={note}
-        readOnly
-        id="note"
-        placeholder="Start writing your burning letter here."
-        h="400px"
-        resize="vertical"
-      />
-      <Flex my="3" pr="2" direction="row-reverse">
-        <Flex align="center">
-          <Text color="gray.500" fontWeight="bold" mr="2">
-            status:
-          </Text>
-          <Box fontSize="12px" w="12px">
+    <div
+      css={css`
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      `}
+    >
+      <FormInput
+        css={css`
+          flex-grow: 1;
+        `}
+      >
+        <label htmlFor="note">Note</label>
+        <TextArea value={note || ""} readOnly id="note" />
+      </FormInput>
+
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row-reverse;
+        `}
+      >
+        <div
+          css={css`
+            display: flex;
+          `}
+        >
+          <p>status:</p>
+          <div
+            css={css`
+              margin-left: 8px;
+            `}
+          >
             <FontAwesomeIcon
               color="#FFD700"
               icon={isDecrypted ? faLockOpen : faLock}
             />
-          </Box>
-        </Flex>
-      </Flex>
-    </Box>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -172,44 +221,53 @@ function DecryptComponent({
   const [hiddenSecret, setHiddenSecret] = React.useState(true);
   const [secret, setSecret] = React.useState("");
   return (
-    <Box>
-      <FormControl>
-        <FormLabel> Secret </FormLabel>
+    <FormInput>
+      <label> Secret </label>
+      <div
+        css={css`
+          display: flex;
+        `}
+      >
+        <input
+          css={(theme) => `
+                      flex-grow: 1;
+                      margin-right: 1rem;
+                      color: ${theme.colors.onBackground};
+                      background: ${theme.colors.elevation.dp02};
 
-        <Flex>
-          <Input
-            value={secret}
-            onChange={(e) => {
-              setSecret(e.target.value);
-            }}
-            type={hiddenSecret ? "password" : "text"}
-            placeholder="Enter your encryption secret."
-          />
+                    `}
+          value={secret}
+          onChange={(e) => {
+            setSecret(e.target.value);
+          }}
+          type={hiddenSecret ? "password" : "text"}
+          placeholder="Enter your encryption secret."
+        />
 
-          <Flex ml="3" fontSize={12}>
-            <Button
-              variant="outline"
-              p="2"
-              onClick={() => setHiddenSecret(!hiddenSecret)}
-            >
-              <FontAwesomeIcon
-                size="sm"
-                icon={hiddenSecret ? faEyeSlash : faEye}
-              />
-            </Button>
-          </Flex>
-        </Flex>
-        {failedDecrypt && (
-          <Text mt="4" ml="1" color="red.400">
-            Error: decryption failed with the submitted secret
-          </Text>
-        )}
-      </FormControl>
+        <Button onClick={() => setHiddenSecret(!hiddenSecret)}>
+          <FontAwesomeIcon icon={hiddenSecret ? faEyeSlash : faEye} />
+        </Button>
+      </div>
+      {failedDecrypt && (
+        <p
+          css={css`
+            margin-top: 5px;
+          `}
+        >
+          Error: decryption failed with the submitted secret
+        </p>
+      )}
 
-      <Flex direction="row-reverse" mt="6">
+      <div
+        css={css`
+          display: flex;
+          flex-direction: row-reverse;
+          margin-top: 2em;
+        `}
+      >
         <Button onClick={() => handleSubmit(secret)}>Decrypt</Button>
-      </Flex>
-    </Box>
+      </div>
+    </FormInput>
   );
 }
 export default Note;
