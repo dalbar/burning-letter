@@ -19,7 +19,7 @@
     "aws-sdk": "^2.756.0",
     "emotion-theming": "^10.0.27",
     "formik": "^2.1.5",
-    "next": "9.5.3",
+    "next": "^10.0.8",
     "react": "16.13.1",
     "react-dom": "16.13.1",
     "uuid": "^8.3.0"
@@ -30,7 +30,7 @@
     "@types/uuid": "^8.3.0",
     "@typescript-eslint/eslint-plugin": "^4.1.1",
     "@typescript-eslint/parser": "^4.1.1",
-    "babel-plugin-inline-react-svg": "^1.1.1",
+    "babel-plugin-inline-react-svg": "^2.0.1",
     "eslint": "^7.9.0",
     "eslint-config-prettier": "^6.11.0",
     "eslint-plugin-react": "^7.20.6",
